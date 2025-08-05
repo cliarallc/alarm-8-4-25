@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Decibel Trigger - Nightmare Alarm</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+      color: white;
+    }
+
+    .container {
+      max-width: 400px;
+      margin: 0 auto;
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      padding: 30px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 30px;
+      font-size: 2.5em;
+      font-weight: 300;
+    }
+
+    .decibel-display {
+      text-align: center;
+      margin-bottom: 30px;
+      padding: 20px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 15px;
+    }
+
+    .decibel-value {
+      font-size: 3em;
+      font-weight: bold;
+      margin-bottom: 10px;
+      transition: color 0.3s ease;
+    }
+
+    .decibel-value.triggered {
+      color: #ff6b6b;
+      animation: pulse 1s infinite;
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+      100% { transform: scale(1); }
+    }
+
+    .level-bar {
+      width: 100%;
+      height: 20px;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 10px;
+      overflow: hidden;
+      margin-top: 10px;
+    }
+
+    .level-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #4ecdc4, #44a08d);
+      border-radius: 10px;
+      transition: width 0.1s ease, background 0.3s ease;
+      width: 0%;
+    }
+
+    .level-fill.triggered {
+      background: linear-gradient(90deg, #ff6b6b, #ee5a52);
+    }
+
+    .threshold-control {
+      margin-bottom: 30px;
+      padding: 20px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 15px;
+    }
+
+    .threshold-label {
+      text-align: center;
+      margin-bottom: 15px;
+      font-size: 1.2em;
+    }
+
+    .slider-container {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .slider {
+      flex: 1;
+      height: 6px;
+      border-radius: 3px;
+      background: rgba(255, 255, 255, 0.3);
+      outline: none;
+      -webkit-appearance: none;
+    }
+
+    .slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #4ecdc4;
+      cursor: pointer;
+    }
+
+    .threshold-value {
+      text-align: center;
+      font-size: 1.5em;
+      font-weight: bold;
+      color: #4ecdc4;
+    }
+
+    .controls {
+      margin-bottom: 30px;
+    }
+
+    .btn {
+      width: 100%;
+      padding: 15px;
+      border: none;
+      border-radius: 10px;
+      font-size: 1.2em;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      margin-bottom: 10px;
+    }
+
+    .btn-start {
+      background: linear-gradient(135deg, #4ecdc4, #44a08d);
+      color: white;
+    }
+
+    .btn-stop {
+      background: linear-gradient(135deg, #ff6b6b, #ee5a52);
+      color: white;
+    }
+
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    }
+
+    .status {
+      padding: 20px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 15px;
+    }
+
+    .status-item {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 10px;
+      padding: 5px 0;
+    }
+
+    .status-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .status-value {
+      font-weight: bold;
+    }
+
+    .recording {
+      color: #ff6b6b;
+      animation: blink 1s infinite;
+    }
+
+    @keyframes blink {
+      0%, 50% { opacity: 1; }
+      51%, 100% { opacity: 0.3; }
+    }
+
+    .error {
+      background: rgba(255, 107, 107, 0.2);
+      color: #ff6b6b;
+      padding: 15px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🎯 Nightmare Alarm</h1>
+
+    <div id="error-message" class="error" style="display: none;">
+      Please allow microphone access to use this app
+    </div>
+
+    <div class="decibel-display">
+      <div class="decibel-value" id="decibel-value">0.0 dB</div>
+      <div class="level-bar">
+        <div class="level-fill" id="level-fill"></div>
+      </div>
+    </div>
+
+    <div class="threshold-control">
+      <div class="threshold-label">Trigger Threshold</div>
+      <div class="slider-container">
+        <span>30</span>
+        <input type="range" class="slider" id="threshold-slider" min="30" max="80" value="50">
+        <span>80</span>
+      </div>
+      <div class="threshold-value" id="threshold-value">50 dB</div>
+    </div>
+
+    <div class="controls">
+      <button class="btn btn-start" id="start-btn" onclick="startMonitoring()">🎤 Start Monitoring</button>
+      <button class="btn btn-stop" id="stop-btn" onclick="stopMonitoring()" style="display: none;">⏹️ Stop Monitoring</button>
+    </div>
+
+    <div class="status">
+      <div class="status-item"><span>Status:</span><span class="status-value" id="status">Stopped</span></div>
+      <div class="status-item"><span>Triggers:</span><span class="status-value" id="trigger-count">0</span></div>
+      <div class="status-item" id="last-trigger-item" style="display: none;">
+        <span>Last Trigger:</span><span class="status-value" id="last-trigger">--</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let audioContext, analyser, microphone, dataArray, animationFrame;
+    let isMonitoring = false;
+    let threshold = 50; // Calibrated decibels
+    let triggerCount = 0;
+    let lastTriggerTime = 0;
+    let lastUpdateTime = Date.now();
+    let wakeUpAudio;
+
+    function initAudio() {
+      wakeUpAudio = new Audio('https://www.dropbox.com/scl/fi/ce94f89cmhg1qy8xc7vro/New-Recording-59.m4a?rlkey=cbww7m9gx6scrornhevxtajgg&st=611jli5w&dl=1');
+      wakeUpAudio.volume = 1.0;
+      wakeUpAudio.preload = 'auto';
+      wakeUpAudio.load();
+    }
+
+    document.getElementById('threshold-slider').addEventListener('input', function(e) {
+      threshold = parseInt(e.target.value);  // calibrated decibels
+      document.getElementById('threshold-value').textContent = threshold + ' dB';
+    });
+
+    async function startMonitoring() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: false,
+            noiseSuppression: false,
+            autoGainControl: false
+          }
+        });
+
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        analyser = audioContext.createAnalyser();
+        microphone = audioContext.createMediaStreamSource(stream);
+
+        analyser.fftSize = 256;
+        const bufferLength = analyser.frequencyBinCount;
+        dataArray = new Uint8Array(bufferLength);
+        microphone.connect(analyser);
+
+        isMonitoring = true;
+        initAudio();
+        updateUI();
+        monitorLoop();
+        document.getElementById('error-message').style.display = 'none';
+
+      } catch (error) {
+        console.error('Error accessing microphone:', error);
+        document.getElementById('error-message').style.display = 'block';
+      }
+    }
+
+    function stopMonitoring() {
+      if (audioContext) audioContext.close();
+      if (animationFrame) cancelAnimationFrame(animationFrame);
+      isMonitoring = false;
+      updateUI();
+      document.getElementById('decibel-value').textContent = '0.0 dB';
+      document.getElementById('level-fill').style.width = '0%';
+      document.getElementById('decibel-value').classList.remove('triggered');
+      document.getElementById('level-fill').classList.remove('triggered');
+    }
+
+    function monitorLoop() {
+      if (!isMonitoring) return;
+
+      analyser.getByteFrequencyData(dataArray);
+      let sum = 0;
+      for (let i = 0; i < dataArray.length; i++) {
+        sum += dataArray[i] * dataArray[i];
+      }
+      const rms = Math.sqrt(sum / dataArray.length);
+      const decibels = Math.min(100, Math.max(0, rms * 0.8));
+      const calibratedDecibels = (decibels * 1.5) + 29;
+
+      document.getElementById('level-fill').style.width = decibels + '%';
+
+      if (Date.now() - lastUpdateTime > 1000) {
+        document.getElementById('decibel-value').textContent = Math.round(calibratedDecibels) + ' dB';
+        lastUpdateTime = Date.now();
+      }
+
+      if (calibratedDecibels > threshold) {
+        handleThresholdExceeded(calibratedDecibels);
+        document.getElementById('decibel-value').classList.add('triggered');
+        document.getElementById('level-fill').classList.add('triggered');
+      } else {
+        document.getElementById('decibel-value').classList.remove('triggered');
+        document.getElementById('level-fill').classList.remove('triggered');
+      }
+
+      animationFrame = requestAnimationFrame(monitorLoop);
+    }
+
+    function handleThresholdExceeded(level) {
+      const now = Date.now();
+      if (now - lastTriggerTime < 10000) return;
+      lastTriggerTime = now;
+      triggerCount++;
+      document.getElementById('trigger-count').textContent = triggerCount;
+      document.getElementById('last-trigger').textContent = new Date().toLocaleTimeString();
+      document.getElementById('last-trigger-item').style.display = 'flex';
+      playWakeUpMessage();
+      triggerSmartSwitch();
+      console.log(`Threshold exceeded: ${level.toFixed(1)} dB`);
+    }
+
+    function playWakeUpMessage() {
+      playFallbackAlert();
+      if (wakeUpAudio) {
+        wakeUpAudio.currentTime = 0;
+        wakeUpAudio.play().catch(error => console.log('Audio play failed:', error));
+      }
+    }
+
+    function playFallbackAlert() {
+      try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+        oscillator.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+        oscillator.frequency.value = 800;
+        gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 1);
+        oscillator.start(audioCtx.currentTime);
+        oscillator.stop(audioCtx.currentTime + 1);
+      } catch (error) {
+        console.log('Fallback beep failed:', error);
+      }
+    }
+
+    function triggerSmartSwitch() {
+      fetch('http://192.168.1.100/trigger', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'trigger', timestamp: Date.now() })
+      }).then(response => {
+        if (response.ok) {
+          console.log('Smart switch triggered successfully');
+        } else {
+          console.log('Smart switch trigger failed');
+        }
+      }).catch(error => {
+        console.log('Smart switch not reachable:', error.message);
+      });
+    }
+
+    function updateUI() {
+      const startBtn = document.getElementById('start-btn');
+      const stopBtn = document.getElementById('stop-btn');
+      const status = document.getElementById('status');
+      if (isMonitoring) {
+        startBtn.style.display = 'none';
+        stopBtn.style.display = 'block';
+        status.textContent = 'Monitoring...';
+        status.classList.add('recording');
+      } else {
+        startBtn.style.display = 'block';
+        stopBtn.style.display = 'none';
+        status.textContent = 'Stopped';
+        status.classList.remove('recording');
+      }
+    }
+
+    updateUI();
+  </script>
+</body>
+</html>
